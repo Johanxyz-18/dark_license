@@ -36,6 +36,7 @@ function formatUser(row) {
     pendingDlDeadline:   row.pending_dl_deadline,
     robloxNameChangedAt: row.roblox_name_changed_at,
     createdAt:           row.created_at,
+    justCount:           parseInt(row.just_count || 0),
   }
 }
 
@@ -45,20 +46,26 @@ router.get('/', requireAuth, requireMod, async (req, res) => {
   try {
     const { search = '', role = '', status = '' } = req.query
 
-    let sql = 'SELECT * FROM users WHERE 1=1'
+    let sql = `
+      SELECT u.*,
+        COUNT(j.id) AS just_count
+      FROM users u
+      LEFT JOIN justifications j ON j.user_id = u.id
+      WHERE 1=1
+    `
     const params = []
     let i = 1
 
     if (search) {
-      sql += ` AND (username ILIKE $${i} OR display_name ILIKE $${i+1} OR roblox_username ILIKE $${i+2} OR system_name ILIKE $${i+3})`
+      sql += ` AND (u.username ILIKE $${i} OR u.display_name ILIKE $${i+1} OR u.roblox_username ILIKE $${i+2} OR u.system_name ILIKE $${i+3})`
       const like = `%${search}%`
       params.push(like, like, like, like)
       i += 4
     }
-    if (role)   { sql += ` AND role = $${i++}`;   params.push(role)   }
-    if (status) { sql += ` AND status = $${i++}`; params.push(status) }
+    if (role)   { sql += ` AND u.role = $${i++}`;   params.push(role)   }
+    if (status) { sql += ` AND u.status = $${i++}`; params.push(status) }
 
-    sql += ' ORDER BY created_at DESC'
+    sql += ' GROUP BY u.id ORDER BY u.created_at DESC'
 
     const rows = await queryAll(sql, params)
     return res.json({ users: rows.map(formatUser) })

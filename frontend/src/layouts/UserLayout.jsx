@@ -145,20 +145,27 @@ export default function UserLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen]     = useState(false)
   const [guideOpen, setGuideOpen]     = useState(false)
-  const [myJustifs, setMyJustifs]     = useState([])
+  const [notifs, setNotifs]           = useState([])
+  const [unread, setUnread]           = useState(0)
   const { currentUser } = useApp()
 
-  useEffect(() => {
-    api.getJustifications()
-      .then(({ justifications }) => {
-        const recent = justifications
-          .filter(j => j.estado !== 'pendiente')
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 5)
-        setMyJustifs(recent)
-      })
+  const loadNotifs = () => {
+    api.getNotifications()
+      .then(({ notifications, unread: u }) => { setNotifs(notifications); setUnread(u) })
       .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadNotifs()
+    const t = setInterval(loadNotifs, 2 * 60 * 1000)
+    return () => clearInterval(t)
   }, [])
+
+  const handleMarkAllRead = async () => {
+    await api.markAllRead().catch(() => {})
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+    setUnread(0)
+  }
 
   // Cerrar paneles al hacer click fuera
   useEffect(() => {
@@ -286,12 +293,12 @@ export default function UserLayout() {
               <button
                 onClick={() => { setNotifOpen(o => !o); setGuideOpen(false) }}
                 className={`relative p-2 rounded-xl transition-colors
-                  ${notifOpen
-                    ? 'bg-zinc-800 text-white'
-                    : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+                  ${notifOpen ? 'bg-zinc-800 text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}>
                 <Bell size={18} />
-                {myJustifs.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1 animate-pulse">
+                    {unread > 9 ? '9+' : unread}
+                  </span>
                 )}
               </button>
               <AnimatePresence>
@@ -301,41 +308,52 @@ export default function UserLayout() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-11 w-72 bg-[#111111] border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                    className="absolute right-0 top-11 w-80 bg-[#111111] border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-                      <p className="text-sm font-semibold text-white">Notificaciones</p>
-                      <button onClick={() => setNotifOpen(false)} className="text-zinc-500 hover:text-white">
-                        <X size={14} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white">Notificaciones</p>
+                        {unread > 0 && (
+                          <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">{unread} nuevas</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {unread > 0 && (
+                          <button onClick={handleMarkAllRead} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                            Marcar leídas
+                          </button>
+                        )}
+                        <button onClick={() => setNotifOpen(false)} className="text-zinc-500 hover:text-white">
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {myJustifs.length === 0 ? (
-                        <div className="flex flex-col items-center py-8 gap-2">
+                    <div className="max-h-72 overflow-y-auto">
+                      {notifs.length === 0 ? (
+                        <div className="flex flex-col items-center py-10 gap-2">
                           <Bell size={24} className="text-zinc-700" />
-                          <p className="text-zinc-500 text-sm">Sin notificaciones nuevas</p>
+                          <p className="text-zinc-500 text-sm">Sin notificaciones</p>
                         </div>
-                      ) : myJustifs.map(j => (
-                        <div key={j.id}
-                          className="flex items-start gap-3 px-4 py-3 hover:bg-zinc-800/40 transition-colors border-b border-zinc-800/40 last:border-0">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5
-                            ${j.estado === 'aprobada' ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
-                            {j.estado === 'aprobada'
-                              ? <CheckCircle2 size={13} className="text-green-400" />
-                              : <AlertCircle size={13} className="text-red-400" />}
+                      ) : notifs.map(n => (
+                        <div key={n.id}
+                          className={`flex items-start gap-3 px-4 py-3 hover:bg-zinc-800/40 transition-colors border-b border-zinc-800/30 last:border-0 cursor-pointer
+                            ${!n.read ? 'bg-zinc-800/20' : ''}`}
+                          onClick={() => { api.markRead(n.id).catch(() => {}); setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x)); setUnread(p => Math.max(0, p - (!n.read ? 1 : 0))) }}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            n.type === 'activity_closed' ? 'bg-amber-500/15' :
+                            n.type === 'monthly_reset'   ? 'bg-blue-500/15'  :
+                            'bg-red-500/15'}`}>
+                            {n.type === 'activity_closed' && <AlertCircle size={13} className="text-amber-400" />}
+                            {n.type === 'monthly_reset'   && <CheckCircle2 size={13} className="text-blue-400" />}
+                            {n.type === 'warning'         && <AlertCircle size={13} className="text-red-400" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white leading-relaxed">
-                              Tu justificación{' '}
-                              <span className="font-semibold text-zinc-200">"{j.motivo}"</span>{' '}
-                              fue{' '}
-                              <span className={`font-semibold ${j.estado === 'aprobada' ? 'text-green-400' : 'text-red-400'}`}>
-                                {j.estado}
-                              </span>
+                            <p className={`text-xs font-semibold truncate ${!n.read ? 'text-white' : 'text-zinc-300'}`}>{n.title}</p>
+                            <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2 mt-0.5">{n.message}</p>
+                            <p className="text-xs text-zinc-700 mt-1">
+                              {new Date(n.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                             </p>
-                            {j.eventoNombre && (
-                              <p className="text-xs text-zinc-600 mt-0.5">{j.eventoNombre}</p>
-                            )}
                           </div>
+                          {!n.read && <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 mt-1.5" />}
                         </div>
                       ))}
                     </div>

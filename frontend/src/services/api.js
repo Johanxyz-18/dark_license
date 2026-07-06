@@ -82,6 +82,24 @@ export const api = {
   getActivityChart: () => request('/dashboard/activity-chart'),
   getJustificationStatus: () => request('/dashboard/justification-status'),
   getRecentActivity: () => request('/dashboard/recent'),
+
+  // Notificaciones
+  getNotifications: () => request('/notifications'),
+  markAllRead: () => request('/notifications/read', { method: 'PATCH' }),
+  markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+
+  // Historial mensual (solo admin)
+  getMonthly: () => request('/monthly'),
+  getMonthlyByMonth: (yearMonth) => request(`/monthly/${yearMonth}`),
+
+  // Invitaciones
+  createInvitation: (data) =>
+    request('/invitations', { method: 'POST', body: JSON.stringify(data) }),
+  getInvitations: () => request('/invitations'),
+  deleteInvitation: (id) =>
+    request(`/invitations/${id}`, { method: 'DELETE' }),
+  checkInviteCode: (code) =>
+    request(`/invitations/${code}`),
 }
 
 export default api

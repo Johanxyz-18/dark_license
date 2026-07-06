@@ -173,13 +173,32 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, robloxUsername, phone } = req.body
+    const { username, password, robloxUsername, phone, inviteCode } = req.body
 
     if (!username || !password || !robloxUsername) {
       return res.status(400).json({ error: 'username, password y robloxUsername son requeridos.' })
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' })
+    }
+
+    // ── Verificar código de invitación si fue dado ────────────────────────────
+    let invitation = null
+    let assignedRole = 'user'
+    let assignedSystemName = null
+
+    if (inviteCode) {
+      invitation = await queryOne(
+        'SELECT * FROM invitations WHERE code = $1',
+        [inviteCode.trim().toUpperCase()]
+      )
+      if (!invitation)        return res.status(404).json({ error: 'Código de invitación inválido.' })
+      if (invitation.used_by) return res.status(409).json({ error: 'Este código ya fue usado.' })
+      if (new Date() > new Date(invitation.expires_at)) {
+        return res.status(410).json({ error: 'Este código de invitación ha expirado.' })
+      }
+      assignedRole       = invitation.role
+      assignedSystemName = invitation.system_name
     }
 
     const usernameTaken = await queryOne('SELECT id FROM users WHERE username = $1', [username.trim()])
@@ -191,7 +210,10 @@ router.post('/register', async (req, res) => {
     if (!roblox) {
       return res.status(400).json({ error: 'No se encontró el usuario de Roblox. Verifica el username.' })
     }
-    if (!hasDLTag(roblox.displayName)) {
+
+    // Si tiene código de invitación NO necesita DL en el nombre.
+    // Sin código, sí lo necesita (registro público).
+    if (!inviteCode && !hasDLTag(roblox.displayName)) {
       return res.status(403).json({ error: 'Tu nombre de Roblox debe contener "DL" para registrarte.' })
     }
 
@@ -208,18 +230,34 @@ router.post('/register', async (req, res) => {
     }
 
     const passwordHash = bcrypt.hashSync(password, 10)
+    const finalSystemName = assignedSystemName || roblox.displayName
+
+    // Si no tiene DL y no tiene código, período de gracia de 7 días
+    const hasDL = hasDLTag(roblox.displayName)
+    const pendingDeadline = (!inviteCode && !hasDL)
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : null
 
     const newUser = await queryOne(
-      `INSERT INTO users (username, password_hash, system_name, display_name, roblox_username, roblox_id, avatar, role, status, phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'user', 'active', $8)
+      `INSERT INTO users (username, password_hash, system_name, display_name, roblox_username, roblox_id, avatar, role, status, phone, pending_dl_deadline)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, $10)
        RETURNING *`,
-      [username.trim(), passwordHash, roblox.displayName, roblox.displayName, robloxUsername.trim(), roblox.robloxId, roblox.avatar, phone || null]
+      [username.trim(), passwordHash, finalSystemName, roblox.displayName, robloxUsername.trim(),
+       roblox.robloxId, roblox.avatar, assignedRole, phone || null, pendingDeadline]
     )
 
     await queryOne(
       "INSERT INTO activity_log (type, user_id, message) VALUES ('join', $1, 'se unió al servidor')",
       [newUser.id]
     )
+
+    // Marcar invitación como usada
+    if (invitation) {
+      await queryOne(
+        'UPDATE invitations SET used_by = $1, used_at = NOW() WHERE id = $2',
+        [newUser.id, invitation.id]
+      )
+    }
 
     const token = signToken({ id: newUser.id, username: newUser.username, role: newUser.role })
     return res.status(201).json({ token, user: formatUser(newUser) })

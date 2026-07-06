@@ -5,7 +5,9 @@
 | Usuario      | Contraseña | Rol   |
 |--------------|-----------|-------|
 | `johan159gl` | `123456`   | Admin |
-| `testuser`   | `user123`  | User  |
+
+> Los demás usuarios se crean mediante **invitaciones** generadas desde el panel admin.
+> Admin → Usuarios → "Generar invitación" → compartir el código `DL-XXXXXX` con el nuevo miembro.
 
 ---
 

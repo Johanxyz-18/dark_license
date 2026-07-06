@@ -17,6 +17,10 @@ const eventsRoutes         = require('./routes/events')
 const justificationsRoutes = require('./routes/justifications')
 const dashboardRoutes      = require('./routes/dashboard')
 const robloxRoutes         = require('./routes/roblox')
+const invitationsRoutes    = require('./routes/invitations')
+const notificationsRoutes  = require('./routes/notifications')
+const monthlyRoutes        = require('./routes/monthly')
+const { startJobs }        = require('./jobs')
 
 const app  = express()
 const PORT = process.env.PORT || 3000
@@ -53,6 +57,9 @@ app.use('/api/events',         eventsRoutes)
 app.use('/api/justifications', justificationsRoutes)
 app.use('/api/dashboard',      dashboardRoutes)
 app.use('/api/roblox',         robloxRoutes)
+app.use('/api/invitations',    invitationsRoutes)
+app.use('/api/notifications',  notificationsRoutes)
+app.use('/api/monthly',        monthlyRoutes)
 
 // Ruta raíz — útil para verificar que el servidor está activo en Render
 app.get('/', (req, res) => {
@@ -79,4 +86,5 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`)
   console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`)
+  startJobs()
 })

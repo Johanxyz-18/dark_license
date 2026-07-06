@@ -22,6 +22,7 @@ function formatEvent(row) {
     fecha:         row.fecha,
     participantes: row.participantes,
     realizada:     row.realizada === true || row.realizada === 1,
+    closesAt:      row.closes_at,   // timestamp exacto de cierre (created_at + 30h)
     createdBy:     row.created_by,
     createdAt:     row.created_at,
   }
@@ -49,11 +50,13 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'titulo y fecha son requeridos.' })
     }
 
+    const closesAt = new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString()
+
     const event = await queryOne(
-      `INSERT INTO events (titulo, descripcion, fecha, participantes, realizada, created_by)
-       VALUES ($1, $2, $3, $4, FALSE, $5)
+      `INSERT INTO events (titulo, descripcion, fecha, participantes, realizada, created_by, closes_at)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6)
        RETURNING *`,
-      [titulo.trim(), descripcion || null, fecha, participantes || null, req.user.id]
+      [titulo.trim(), descripcion || null, fecha, participantes || null, req.user.id, closesAt]
     )
 
     await queryOne(

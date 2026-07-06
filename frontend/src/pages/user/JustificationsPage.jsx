@@ -25,17 +25,17 @@ function toDateStr(fecha) {
   return new Date(fecha).toISOString().slice(0, 10)
 }
 
-// Auto-cierre: 30h después de medianoche de la fecha
-function isAutoClosed(fecha) {
-  const start   = new Date(toDateStr(fecha) + 'T00:00:00')
-  const closeAt = new Date(start.getTime() + 30 * 60 * 60 * 1000)
-  return new Date() >= closeAt
+// Auto-cierre: usa closesAt del backend (30h desde creación)
+function isAutoClosed(ev) {
+  const closeAt = ev?.closesAt || ev?.closes_at
+  if (!closeAt) return false
+  return new Date() >= new Date(closeAt)
 }
 
-function timeUntilClose(fecha) {
-  const start   = new Date(toDateStr(fecha) + 'T00:00:00')
-  const closeAt = new Date(start.getTime() + 30 * 60 * 60 * 1000)
-  const ms      = closeAt - Date.now()
+function timeUntilClose(ev) {
+  const closeAt = ev?.closesAt || ev?.closes_at
+  if (!closeAt) return null
+  const ms = new Date(closeAt) - Date.now()
   if (ms <= 0) return null
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
@@ -71,8 +71,8 @@ export default function JustificationsPage() {
   const justifiedEventIds = new Set(myJust.map(j => j.eventoId).filter(Boolean))
 
   const visibleEvents = adminEvents.filter(ev => {
-    if (!isAutoClosed(ev.fecha)) return true          // activa: siempre visible
-    return justifiedEventIds.has(ev.id)               // cerrada: solo si ya justificó
+    if (!isAutoClosed(ev)) return true       // activa: siempre visible
+    return justifiedEventIds.has(ev.id)      // cerrada: solo si ya justificó
   })
 
   // Agrupar por mes para la sección de actividades
@@ -160,10 +160,10 @@ export default function JustificationsPage() {
                   {eventsByMonth[mk]
                     .sort((a, b) => toDateStr(b.fecha).localeCompare(toDateStr(a.fecha)))
                     .map(ev => {
-                      const closed     = isAutoClosed(ev.fecha)
+                      const closed     = isAutoClosed(ev)
                       const justified  = alreadyJustified(ev.id)
                       const formOpen   = openFormId === ev.id
-                      const countdown  = timeUntilClose(ev.fecha)
+                      const countdown  = timeUntilClose(ev)
                       const d          = new Date(toDateStr(ev.fecha) + 'T12:00:00')
                       const f          = getForm(ev.id)
 

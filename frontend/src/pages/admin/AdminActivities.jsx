@@ -6,7 +6,7 @@
  * - Los usuarios ven las activas para justificarse
  * - Una vez cerrada ya no acepta justificaciones
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, CalendarDays, Users, CheckCircle2, Circle, Trash2, Clock, Lock } from 'lucide-react'
 import Button from '../../components/Button'
@@ -26,17 +26,18 @@ function toDateStr(fecha) {
   return new Date(fecha).toISOString().slice(0, 10)
 }
 
-// Una actividad se auto-cierra 30h después de su fecha de inicio (medianoche)
-function isAutoClosed(fecha) {
-  const start   = new Date(toDateStr(fecha) + 'T00:00:00')
-  const closeAt = new Date(start.getTime() + 30 * 60 * 60 * 1000)
-  return new Date() >= closeAt
+// Auto-cierre: 30h desde que se creó la actividad (viene como closesAt del backend)
+function isAutoClosed(ev) {
+  if (!ev) return false
+  const closeAt = ev.closesAt || ev.closes_at
+  if (!closeAt) return false
+  return new Date() >= new Date(closeAt)
 }
 
-function timeUntilClose(fecha) {
-  const start   = new Date(toDateStr(fecha) + 'T00:00:00')
-  const closeAt = new Date(start.getTime() + 30 * 60 * 60 * 1000)
-  const ms      = closeAt - Date.now()
+function timeUntilClose(ev) {
+  const closeAt = ev?.closesAt || ev?.closes_at
+  if (!closeAt) return null
+  const ms = new Date(closeAt) - Date.now()
   if (ms <= 0) return null
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
@@ -45,8 +46,8 @@ function timeUntilClose(fecha) {
 }
 
 function statusBadge(ev) {
-  if (ev.realizada)       return { label: 'Realizada', color: 'text-green-400 bg-green-500/10 border-green-500/20' }
-  if (isAutoClosed(ev.fecha)) return { label: 'Cerrada',   color: 'text-zinc-400 bg-zinc-700/30 border-zinc-700/40' }
+  if (ev.realizada)      return { label: 'Realizada', color: 'text-green-400 bg-green-500/10 border-green-500/20' }
+  if (isAutoClosed(ev))  return { label: 'Cerrada',   color: 'text-zinc-400 bg-zinc-700/30 border-zinc-700/40' }
   return { label: 'Activa', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
 }
 
@@ -129,8 +130,8 @@ export default function AdminActivities() {
 
   if (loading) return <LoadingSpinner message="Cargando actividades..." />
 
-  const activas  = events.filter(ev => !ev.realizada && !isAutoClosed(ev.fecha))
-  const cerradas = events.filter(ev => ev.realizada || isAutoClosed(ev.fecha))
+  const activas  = events.filter(ev => !ev.realizada && !isAutoClosed(ev))
+  const cerradas = events.filter(ev => ev.realizada || isAutoClosed(ev))
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -195,7 +196,7 @@ export default function AdminActivities() {
               className="w-full bg-[#0a0a0a] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all resize-none" />
           </div>
           <Input label="Fecha de inicio" type="date" value={form.fecha} onChange={set('fecha')} required
-            hint="La actividad se cerrará automáticamente 30 horas después de esta fecha" />
+            hint="La actividad se cerrará automáticamente 30 horas después de ser creada" />
           <Input label="¿Quiénes participan?" placeholder="Ej: Todos los miembros..." value={form.participantes} onChange={set('participantes')} />
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="secondary" fullWidth onClick={() => setCreateModal(false)}>Cancelar</Button>
@@ -220,10 +221,10 @@ export default function AdminActivities() {
 }
 
 function EventRow({ ev, onToggle, onDelete }) {
-  const d       = new Date(toDateStr(ev.fecha) + 'T12:00:00')
-  const closed  = ev.realizada || isAutoClosed(ev.fecha)
-  const countdown = timeUntilClose(ev.fecha)
-  const sb      = statusBadge(ev)
+  const d         = new Date(toDateStr(ev.fecha) + 'T12:00:00')
+  const closed    = ev.realizada || isAutoClosed(ev)
+  const countdown = timeUntilClose(ev)
+  const sb        = statusBadge(ev)
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
@@ -274,7 +275,7 @@ function EventRow({ ev, onToggle, onDelete }) {
                 <Clock size={10} />{countdown}
               </span>
             )}
-            {isAutoClosed(ev.fecha) && !ev.realizada && (
+            {isAutoClosed(ev) && !ev.realizada && (
               <span className="flex items-center gap-1 text-xs text-zinc-500">
                 <Lock size={10} />Cerrada automáticamente
               </span>

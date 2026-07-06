@@ -6,20 +6,14 @@ const AppContext = createContext(null)
 export function AppProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
-  const [darkMode, setDarkMode] = useState(true)
   const [loading, setLoading] = useState(true)
   const [adminEvents, setAdminEvents] = useState([])
 
   useEffect(() => {
-    const root = document.documentElement
-    if (darkMode) {
-      root.classList.add('dark')
-      root.style.colorScheme = 'dark'
-    } else {
-      root.classList.remove('dark')
-      root.style.colorScheme = 'light'
-    }
-  }, [darkMode])
+    // Forzar siempre modo oscuro
+    document.documentElement.classList.add('dark')
+    document.documentElement.style.colorScheme = 'dark'
+  }, [])
 
   const refreshEvents = useCallback(async () => {
     try {
@@ -68,6 +62,7 @@ export function AppProvider({ children }) {
         password:       data.password,
         robloxUsername: data.robloxUsername,
         phone:          data.phone,
+        inviteCode:     data.inviteCode || undefined,
       })
       api.setToken(token)
       setCurrentUser(user)
@@ -85,8 +80,6 @@ export function AppProvider({ children }) {
     setCurrentUser(null)
     setAdminEvents([])
   }
-
-  const toggleDarkMode = () => setDarkMode(prev => !prev)
 
   const updateCurrentUser = async (data) => {
     const { user } = await api.updateProfile(data)
@@ -118,8 +111,6 @@ export function AppProvider({ children }) {
       login,
       register,
       logout,
-      darkMode,
-      toggleDarkMode,
       adminEvents,
       setAdminEvents,
       refreshEvents,
