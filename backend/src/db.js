@@ -18,6 +18,8 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,
+  // Forzar IPv4 para evitar ENETUNREACH en Render
+  family: 4,
 })
 
 pool.on('error', (err) => {
