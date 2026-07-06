@@ -30,23 +30,26 @@ const PORT = process.env.PORT || 3000
 // CORS: en producción (Render) se permite el dominio de Vercel;
 // en desarrollo se permite todo.
 const allowedOrigins = [
-  'http://localhost:5173',   // Vite dev
-  'http://localhost:4173',   // Vite preview
-  process.env.FRONTEND_URL, // ej: https://tu-app.vercel.app
+  'http://localhost:5173',
+  'http://localhost:4173',
+  process.env.FRONTEND_URL,
   ...(process.env.FRONTEND_URL_2 ? [process.env.FRONTEND_URL_2] : []),
 ].filter(Boolean)
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir llamadas sin Origin (Postman, curl, mismo servidor)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error(`CORS bloqueado para: ${origin}`))
+    // Permitir sin Origin (curl, Postman) o cualquier vercel.app en producción
+    if (!origin) return callback(null, true)
+    if (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+      return callback(null, true)
     }
+    callback(new Error(`CORS bloqueado para: ${origin}`))
   },
   credentials: true,
 }))
+
+// Permitir preflight en todas las rutas
+app.options('*', cors())
 
 app.use(express.json())
 
