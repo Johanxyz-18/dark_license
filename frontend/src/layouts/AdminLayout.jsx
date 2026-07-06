@@ -1,20 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, FileText, Cake, BarChart3,
-  Settings, LogOut, Menu, X, Bell, Shield, ChevronDown
+  Settings, LogOut, Menu, X, Bell, Shield, ChevronDown,
+  CheckCircle2, Clock, UserPlus, CalendarDays
 } from 'lucide-react'
 import { useApp } from '../hooks/useApp'
 import Avatar from '../components/Avatar'
+import api from '../services/api'
 
 const navItems = [
-  { to: '/admin', icon: <LayoutDashboard size={18} />, label: 'Dashboard', end: true },
-  { to: '/admin/users', icon: <Users size={18} />, label: 'Usuarios' },
-  { to: '/admin/justifications', icon: <FileText size={18} />, label: 'Justificaciones' },
-  { to: '/admin/birthdays', icon: <Cake size={18} />, label: 'Cumpleaños' },
-  { to: '/admin/reports', icon: <BarChart3 size={18} />, label: 'Reportes' },
-  { to: '/admin/settings', icon: <Settings size={18} />, label: 'Configuración' },
+  { to: '/admin',               icon: <LayoutDashboard size={18} />, label: 'Dashboard',       end: true },
+  { to: '/admin/users',         icon: <Users size={18} />,           label: 'Usuarios' },
+  { to: '/admin/activities',    icon: <CalendarDays size={18} />,    label: 'Actividades' },
+  { to: '/admin/justifications',icon: <FileText size={18} />,        label: 'Justificaciones' },
+  { to: '/admin/birthdays',     icon: <Cake size={18} />,            label: 'Cumpleaños' },
+  { to: '/admin/reports',       icon: <BarChart3 size={18} />,       label: 'Reportes' },
+  { to: '/admin/settings',      icon: <Settings size={18} />,        label: 'Configuración' },
 ]
 
 function SidebarContent({ onClose }) {
@@ -94,7 +97,22 @@ function SidebarContent({ onClose }) {
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [notifOpen, setNotifOpen]     = useState(false)
+  const [notifs, setNotifs]           = useState([])
   const { currentUser } = useApp()
+
+  useEffect(() => {
+    api.getRecentActivity()
+      .then(({ recentActivity }) => setNotifs(recentActivity.slice(0, 6)))
+      .catch(() => {})
+  }, [])
+
+  const typeIcon = (type) => {
+    if (type === 'join')          return <UserPlus size={13} className="text-green-400" />
+    if (type === 'justification') return <FileText size={13} className="text-amber-400" />
+    if (type === 'approve')       return <CheckCircle2 size={13} className="text-green-400" />
+    return <Clock size={13} className="text-zinc-400" />
+  }
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] overflow-hidden">
@@ -144,10 +162,52 @@ export default function AdminLayout() {
             </h1>
           </div>
           <div className="flex items-center gap-3 ml-auto">
-            <button className="relative p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            {/* Notificaciones */}
+            <div className="relative">
+              <button onClick={() => setNotifOpen(o => !o)}
+                className="relative p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <Bell size={18} />
+                {notifs.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+              </button>
+              <AnimatePresence>
+                {notifOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-11 w-80 bg-[#111111] border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                      <p className="text-sm font-semibold text-white">Actividad reciente</p>
+                      <button onClick={() => setNotifOpen(false)} className="text-zinc-500 hover:text-white">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {notifs.length === 0 ? (
+                        <p className="text-zinc-500 text-sm text-center py-8">Sin actividad reciente</p>
+                      ) : notifs.map(n => (
+                        <div key={n.id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 transition-colors border-b border-zinc-800/40 last:border-0">
+                          <div className="w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                            {typeIcon(n.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-white truncate">
+                              <span className="font-semibold">{n.user}</span>{' '}
+                              <span className="text-zinc-400">{n.message}</span>
+                            </p>
+                            <p className="text-xs text-zinc-600">{n.time}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0a0a0a]/70 border border-red-900/30">
               <Avatar src={currentUser?.avatar} alt={currentUser?.displayName} size="sm" />
               <span className="text-sm text-white font-medium hidden sm:block">{currentUser?.systemName || currentUser?.displayName}</span>

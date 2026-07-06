@@ -21,6 +21,8 @@ function formatJust(row) {
     username:     row.username,
     systemName:   row.system_name || row.display_name,
     displayName:  row.display_name,
+    robloxId:     row.roblox_id,
+    phone:        row.phone,
     avatar:       row.avatar,
     eventoId:     row.evento_id,
     eventoNombre: row.evento_nombre,
@@ -40,7 +42,7 @@ router.get('/', requireAuth, async (req, res) => {
     const isAdmin = req.user.role === 'admin' || req.user.role === 'moderator'
 
     let sql = `
-      SELECT j.*, u.username, u.system_name, u.display_name, u.avatar
+      SELECT j.*, u.username, u.system_name, u.display_name, u.roblox_id, u.phone, u.avatar
       FROM justifications j
       JOIN users u ON j.user_id = u.id
     `
@@ -89,7 +91,7 @@ router.post('/', requireAuth, async (req, res) => {
     )
 
     const row = await queryOne(
-      `SELECT j.*, u.username, u.system_name, u.display_name, u.avatar
+      `SELECT j.*, u.username, u.system_name, u.display_name, u.roblox_id, u.phone, u.avatar
        FROM justifications j JOIN users u ON j.user_id = u.id
        WHERE j.id = $1`,
       [just.id]
@@ -126,7 +128,7 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
     )
 
     const row = await queryOne(
-      `SELECT j.*, u.username, u.system_name, u.display_name, u.avatar
+      `SELECT j.*, u.username, u.system_name, u.display_name, u.roblox_id, u.phone, u.avatar
        FROM justifications j JOIN users u ON j.user_id = u.id
        WHERE j.id = $1`,
       [id]

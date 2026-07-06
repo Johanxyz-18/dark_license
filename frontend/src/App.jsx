@@ -13,6 +13,7 @@ import BirthdaysPage from './pages/user/BirthdaysPage'
 import SettingsPage from './pages/user/SettingsPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminActivities from './pages/admin/AdminActivities'
 import AdminJustifications from './pages/admin/AdminJustifications'
 import AdminBirthdays from './pages/admin/AdminBirthdays'
 import AdminReports from './pages/admin/AdminReports'
@@ -114,6 +115,7 @@ function AppRoutes() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="activities" element={<AdminActivities />} />
             <Route path="justifications" element={<AdminJustifications />} />
             <Route path="birthdays" element={<AdminBirthdays />} />
             <Route path="reports" element={<AdminReports />} />
