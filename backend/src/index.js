@@ -33,6 +33,7 @@ const allowedOrigins = [
   'http://localhost:5173',   // Vite dev
   'http://localhost:4173',   // Vite preview
   process.env.FRONTEND_URL, // ej: https://tu-app.vercel.app
+  ...(process.env.FRONTEND_URL_2 ? [process.env.FRONTEND_URL_2] : []),
 ].filter(Boolean)
 
 app.use(cors({
