@@ -352,7 +352,11 @@ export default function AdminUsers() {
                 <p className="text-xs text-zinc-500 mb-1 flex items-center gap-1"><Calendar size={11} />Cumpleaños</p>
                 <p className="text-sm text-white font-medium">
                   {detailUser.birthday
-                    ? new Date(detailUser.birthday).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+                    ? (() => {
+                        const parts = detailUser.birthday.slice(0, 10).split('-')
+                        const d = new Date(+parts[0], +parts[1] - 1, +parts[2])
+                        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+                      })()
                     : '—'}
                 </p>
               </div>

@@ -9,7 +9,9 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 
 function BirthdayCountdown({ birthday }) {
   const today = new Date()
-  const bd = new Date(birthday)
+  // Parsear en hora local para evitar desfase de zona horaria
+  const parts = birthday.slice(0, 10).split('-')
+  const bd = new Date(+parts[0], +parts[1] - 1, +parts[2])
   let next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate())
   if (next < today) next = new Date(today.getFullYear() + 1, bd.getMonth(), bd.getDate())
 
@@ -75,7 +77,8 @@ export default function BirthdaysPage() {
   const today = new Date()
   const hasBirthday = !!currentUser?.birthday
   const isToday = hasBirthday && (() => {
-    const d = new Date(currentUser.birthday)
+    const parts = currentUser.birthday.slice(0, 10).split('-')
+    const d = new Date(+parts[0], +parts[1] - 1, +parts[2])
     return d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
   })()
 
@@ -127,7 +130,8 @@ export default function BirthdaysPage() {
                   <p className="text-xs text-slate-500 uppercase tracking-wider">Fecha de cumpleaños</p>
                   <p className="text-sm font-semibold text-white mt-0.5">
                     {(() => {
-                      const d = new Date(currentUser.birthday)
+                      const parts = currentUser.birthday.slice(0, 10).split('-')
+                      const d = new Date(+parts[0], +parts[1] - 1, +parts[2])
                       return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`
                     })()}
                   </p>
@@ -139,7 +143,8 @@ export default function BirthdaysPage() {
                   <p className="text-xs text-slate-500 uppercase tracking-wider">Próxima edad</p>
                   <p className="text-sm font-semibold text-white mt-0.5">
                     {(() => {
-                      const bd = new Date(currentUser.birthday)
+                      const parts = currentUser.birthday.slice(0, 10).split('-')
+                      const bd = new Date(+parts[0], +parts[1] - 1, +parts[2])
                       const next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate())
                       const age = today.getFullYear() - bd.getFullYear() + (next < today ? 1 : 0)
                       return `${age} años`

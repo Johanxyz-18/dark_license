@@ -10,6 +10,13 @@ import api from '../../services/api'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+// Parsea fecha de cumpleaños en hora local para evitar desfase de zona horaria
+function parseDate(dateStr) {
+  if (!dateStr) return null
+  const parts = String(dateStr).slice(0, 10).split('-')
+  return new Date(+parts[0], +parts[1] - 1, +parts[2])
+}
+
 export default function AdminBirthdays() {
   const [birthdays, setBirthdays] = useState([])
   const [search, setSearch] = useState('')
@@ -27,12 +34,13 @@ export default function AdminBirthdays() {
 
   const filtered = birthdays.filter(b => {
     const matchSearch = !search || b.displayName.toLowerCase().includes(search.toLowerCase())
-    const matchMonth = selectedMonth === 'all' || new Date(b.birthday).getMonth() === parseInt(selectedMonth)
+    const d = parseDate(b.birthday)
+    const matchMonth = selectedMonth === 'all' || (d && d.getMonth() === parseInt(selectedMonth))
     return matchSearch && matchMonth
   })
 
   const grouped = MONTHS.reduce((acc, month, i) => {
-    const items = filtered.filter(b => new Date(b.birthday).getMonth() === i)
+    const items = filtered.filter(b => { const d = parseDate(b.birthday); return d && d.getMonth() === i })
     if (items.length) acc[i] = items
     return acc
   }, {})
@@ -69,8 +77,8 @@ export default function AdminBirthdays() {
                 </div>
                 <div className="space-y-2">
                   {items.map((b, i) => {
-                    const d = new Date(b.birthday)
-                    const isToday = d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
+                    const d = parseDate(b.birthday)
+                    const isToday = d && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
                     return (
                       <motion.div key={b.id} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                         className={`flex items-center gap-3 p-3 rounded-xl border transition-colors
