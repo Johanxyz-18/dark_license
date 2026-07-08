@@ -96,7 +96,7 @@ function LoginForm() {
     <form onSubmit={handle} className="space-y-4">
       <GoldInput label="Usuario" placeholder="Tu nombre de usuario" type="text"
         value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-        icon={<User size={15} />} required />
+        icon={<User size={15} />} autoComplete="username" required />
       <GoldInput label="Contraseña" placeholder="••••••••"
         type={showPass ? 'text' : 'password'}
         value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}

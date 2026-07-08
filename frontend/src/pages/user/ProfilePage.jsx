@@ -43,7 +43,10 @@ export default function ProfilePage() {
 
   const formatBirthday = (d) => {
     if (!d) return 'No establecida'
-    return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    // Forzar parse en hora local para evitar desfase de zona horaria
+    const parts = d.slice(0, 10).split('-')
+    const date = new Date(+parts[0], +parts[1] - 1, +parts[2])
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
   return (
@@ -95,7 +98,8 @@ export default function ProfilePage() {
             onChange={e => setForm(f => ({ ...f, systemName: e.target.value }))}
             placeholder="Tu nombre para mostrar" />
           <Input label="Fecha de cumpleaños" type="date" value={form.birthday}
-            onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} />
+            onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
+            max={new Date().toISOString().slice(0, 10)} />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setEditOpen(false)}>Cancelar</Button>
             <Button fullWidth onClick={handleSave}>Guardar</Button>

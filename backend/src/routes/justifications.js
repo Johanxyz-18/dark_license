@@ -127,6 +127,73 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
       [req.user.id, `${action} una justificación`]
     )
 
+    // Notificar al usuario cuando se rechaza
+    const justRow = await queryOne('SELECT user_id FROM justifications WHERE id = $1', [id])
+    if (justRow) {
+      if (estado === 'rechazada') {
+        // Contar cuántas rechazadas tiene este usuario
+        const rejCount = await queryOne(
+          "SELECT COUNT(*) as c FROM justifications WHERE user_id = $1 AND estado = 'rechazada'",
+          [justRow.user_id]
+        )
+        const total = parseInt(rejCount.c)
+
+        // Notificación base de rechazo
+        await queryOne(
+          `INSERT INTO notifications (user_id, type, title, message)
+           VALUES ($1, 'warning', $2, $3)`,
+          [
+            justRow.user_id,
+            'Justificación rechazada',
+            'Una de tus justificaciones fue rechazada por el administrador. Por favor sé más detallado en futuras justificaciones.',
+          ]
+        )
+
+        // Aviso extra al llegar a 3 rechazadas
+        if (total === 3) {
+          await queryOne(
+            `INSERT INTO notifications (user_id, type, title, message)
+             VALUES ($1, 'warning', $2, $3)`,
+            [
+              justRow.user_id,
+              '⚠ Atención: 3 justificaciones rechazadas',
+              'Tienes 3 justificaciones rechazadas. El administrador ha sido notificado. Te recomendamos tomarte más en serio la asistencia y redactar justificaciones más detalladas.',
+            ]
+          )
+        }
+      } else if (estado === 'aprobada') {
+        // Notificación de aprobación
+        const approvedCount = await queryOne(
+          "SELECT COUNT(*) as c FROM justifications WHERE user_id = $1 AND estado = 'aprobada'",
+          [justRow.user_id]
+        )
+        const totalApproved = parseInt(approvedCount.c)
+
+        await queryOne(
+          `INSERT INTO notifications (user_id, type, title, message)
+           VALUES ($1, 'warning', $2, $3)`,
+          [
+            justRow.user_id,
+            '✓ Justificación aprobada',
+            'Tu justificación fue aprobada por el administrador.',
+          ]
+        )
+
+        // Mensaje especial al llegar a 6 aprobadas
+        if (totalApproved === 6) {
+          await queryOne(
+            `INSERT INTO notifications (user_id, type, title, message)
+             VALUES ($1, 'warning', $2, $3)`,
+            [
+              justRow.user_id,
+              '🏆 ¡6 justificaciones aprobadas!',
+              '¡Felicitaciones! Has acumulado 6 justificaciones aprobadas. Eres un miembro responsable del servidor.',
+            ]
+          )
+        }
+      }
+    }
+
     const row = await queryOne(
       `SELECT j.*, u.username, u.system_name, u.display_name, u.roblox_id, u.phone, u.avatar
        FROM justifications j JOIN users u ON j.user_id = u.id

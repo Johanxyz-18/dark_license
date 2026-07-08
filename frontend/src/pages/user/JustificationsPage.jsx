@@ -1,13 +1,16 @@
 /**
  * JustificationsPage.jsx — Panel de justificaciones del usuario
  *
- * - Sección "Actividades": muestra las actividades activas (dentro de 30h).
- *   Las cerradas solo aparecen si el usuario YA justificó en ellas.
- * - Sección "Mis justificaciones": historial del usuario.
+ * - Aviso si tiene 3+ rechazadas (warning) o 6+ aprobadas (felicitación)
+ * - Sección "Actividades": actividades activas para justificar
+ * - Sección "Mis justificaciones": tabs separados Pendientes / Aprobadas / Rechazadas
  */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FileText, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Send, Lock, Clock } from 'lucide-react'
+import {
+  FileText, CalendarDays, CheckCircle2, ChevronDown, ChevronUp,
+  Send, Lock, Clock, AlertTriangle, Trophy, XCircle, CheckCircle, Timer
+} from 'lucide-react'
 import { useApp } from '../../hooks/useApp'
 import Button from '../../components/Button'
 import Badge from '../../components/Badge'
@@ -25,7 +28,6 @@ function toDateStr(fecha) {
   return new Date(fecha).toISOString().slice(0, 10)
 }
 
-// Auto-cierre: usa closesAt del backend (30h desde creación)
 function isAutoClosed(ev) {
   const closeAt = ev?.closesAt || ev?.closes_at
   if (!closeAt) return false
@@ -49,12 +51,11 @@ export default function JustificationsPage() {
   const { currentUser, adminEvents } = useApp()
   const [justList, setJustList]     = useState([])
   const [loading, setLoading]       = useState(true)
-  const [filter, setFilter]         = useState('all')
+  const [activeTab, setActiveTab]   = useState('pendiente') // pendiente | aprobada | rechazada
   const [openFormId, setOpenFormId] = useState(null)
   const [forms, setForms]           = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [successId, setSuccessId]   = useState(null)
-  const [showAll, setShowAll]       = useState(false) // mostrar todas las actividades vs solo activas
 
   const loadJust = () => {
     api.getJustifications()
@@ -67,15 +68,24 @@ export default function JustificationsPage() {
 
   const myJust = justList.filter(j => j.userId === currentUser?.id)
 
-  // Actividades activas (dentro de 30h) + las cerradas donde el usuario ya justificó
-  const justifiedEventIds = new Set(myJust.map(j => j.eventoId).filter(Boolean))
+  const counts = {
+    pendiente: myJust.filter(j => j.estado === 'pendiente').length,
+    aprobada:  myJust.filter(j => j.estado === 'aprobada').length,
+    rechazada: myJust.filter(j => j.estado === 'rechazada').length,
+  }
 
+  // Avisos según contadores
+  const showRejectedWarning = counts.rechazada >= 3
+  const showApprovedTrophy  = counts.aprobada  >= 6
+
+  // Actividades visibles
+  const justifiedEventIds = new Set(myJust.map(j => j.eventoId).filter(Boolean))
   const visibleEvents = adminEvents.filter(ev => {
-    if (!isAutoClosed(ev)) return true       // activa: siempre visible
-    return justifiedEventIds.has(ev.id)      // cerrada: solo si ya justificó
+    if (!isAutoClosed(ev)) return true
+    return justifiedEventIds.has(ev.id)
   })
 
-  // Agrupar por mes para la sección de actividades
+  // Agrupar actividades por mes
   const eventsByMonth = {}
   visibleEvents.forEach(ev => {
     const mk = toDateStr(ev.fecha).slice(0, 7)
@@ -84,7 +94,7 @@ export default function JustificationsPage() {
   })
   const eventMonths = Object.keys(eventsByMonth).sort((a, b) => b.localeCompare(a))
 
-  const filtered = filter === 'all' ? myJust : myJust.filter(j => j.estado === filter)
+  const filtered = myJust.filter(j => j.estado === activeTab)
 
   const alreadyJustified = (id) => myJust.some(j => j.eventoId === id)
   const getForm = (id) => forms[id] || { motivo: '', descripcion: '' }
@@ -116,13 +126,6 @@ export default function JustificationsPage() {
     }
   }
 
-  const counts = {
-    all:       myJust.length,
-    pendiente: myJust.filter(j => j.estado === 'pendiente').length,
-    aprobada:  myJust.filter(j => j.estado === 'aprobada').length,
-    rechazada: myJust.filter(j => j.estado === 'rechazada').length,
-  }
-
   if (loading) return <LoadingSpinner message="Cargando justificaciones..." />
 
   return (
@@ -132,13 +135,61 @@ export default function JustificationsPage() {
         subtitle="Justifica tu ausencia en actividades activas"
       />
 
+      {/* ══ AVISO: 3+ RECHAZADAS ══ */}
+      <AnimatePresence>
+        {showRejectedWarning && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            className="flex items-start gap-3 p-4 rounded-2xl border border-red-500/30 bg-red-500/5"
+          >
+            <div className="p-2 rounded-xl bg-red-500/15 text-red-400 flex-shrink-0">
+              <AlertTriangle size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-300">
+                ⚠ Tienes {counts.rechazada} justificaciones rechazadas
+              </p>
+              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                Tu historial muestra varias ausencias sin justificación válida. Te recomendamos tomarte más en serio la asistencia y redactar justificaciones con más detalle. El admin ha sido notificado.
+              </p>
+            </div>
+            <span className="text-2xl font-black text-red-500/40">{counts.rechazada}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ══ AVISO: 6+ APROBADAS ══ */}
+      <AnimatePresence>
+        {showApprovedTrophy && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5"
+          >
+            <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 flex-shrink-0">
+              <Trophy size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-300">
+                🏆 {counts.aprobada} justificaciones aprobadas
+              </p>
+              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                Has mantenido un buen historial de justificaciones. ¡Sigue así y demuestra tu compromiso con el servidor!
+              </p>
+            </div>
+            <span className="text-2xl font-black text-amber-500/40">{counts.aprobada}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ══ ACTIVIDADES DEL SERVIDOR ══ */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CalendarDays size={16} className="text-red-400" />
-            <h2 className="font-semibold text-white text-sm">Actividades del servidor</h2>
-          </div>
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-red-400" />
+          <h2 className="font-semibold text-white text-sm">Actividades del servidor</h2>
         </div>
 
         {visibleEvents.length === 0 ? (
@@ -160,19 +211,18 @@ export default function JustificationsPage() {
                   {eventsByMonth[mk]
                     .sort((a, b) => toDateStr(b.fecha).localeCompare(toDateStr(a.fecha)))
                     .map(ev => {
-                      const closed     = isAutoClosed(ev)
-                      const justified  = alreadyJustified(ev.id)
-                      const formOpen   = openFormId === ev.id
-                      const countdown  = timeUntilClose(ev)
-                      const d          = new Date(toDateStr(ev.fecha) + 'T12:00:00')
-                      const f          = getForm(ev.id)
+                      const closed    = isAutoClosed(ev)
+                      const justified = alreadyJustified(ev.id)
+                      const formOpen  = openFormId === ev.id
+                      const countdown = timeUntilClose(ev)
+                      const d         = new Date(toDateStr(ev.fecha) + 'T12:00:00')
+                      const f         = getForm(ev.id)
 
                       return (
                         <div key={ev.id}
                           className={`rounded-xl border overflow-hidden transition-all
                             ${justified ? 'border-green-500/25' : closed ? 'border-zinc-800/30 opacity-60' : formOpen ? 'border-red-500/30' : 'border-zinc-800/60'}`}>
 
-                          {/* Fila principal */}
                           <button
                             onClick={() => {
                               if (justified || closed) return
@@ -181,7 +231,6 @@ export default function JustificationsPage() {
                             disabled={justified || closed}
                             className="w-full flex items-stretch text-left disabled:cursor-default hover:bg-zinc-800/20 transition-colors">
 
-                            {/* Columna día */}
                             <div className={`flex-shrink-0 w-14 flex flex-col items-center justify-center py-3 border-r
                               ${justified ? 'border-green-500/15 bg-green-500/5'
                                 : closed ? 'border-zinc-800/30 bg-zinc-900/20'
@@ -196,7 +245,6 @@ export default function JustificationsPage() {
                               </span>
                             </div>
 
-                            {/* Contenido */}
                             <div className="flex-1 flex items-center gap-3 px-3 py-2.5 min-w-0">
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium truncate ${closed ? 'text-zinc-500' : 'text-white'}`}>
@@ -241,7 +289,6 @@ export default function JustificationsPage() {
                             </div>
                           </button>
 
-                          {/* Formulario inline */}
                           <AnimatePresence initial={false}>
                             {formOpen && !justified && !closed && (
                               <motion.div key="form"
@@ -285,36 +332,67 @@ export default function JustificationsPage() {
         )}
       </section>
 
-      {/* ══ MIS JUSTIFICACIONES ══ */}
+      {/* ══ MIS JUSTIFICACIONES — TABS ══ */}
       <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <FileText size={16} className="text-zinc-400" />
-            <h2 className="font-semibold text-white text-sm">Mis justificaciones</h2>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {[
-              { key: 'all',       label: 'Todas',      dot: 'bg-zinc-400' },
-              { key: 'pendiente', label: 'Pendientes', dot: 'bg-amber-400' },
-              { key: 'aprobada',  label: 'Aprobadas',  dot: 'bg-green-400' },
-              { key: 'rechazada', label: 'Rechazadas', dot: 'bg-red-400' },
-            ].map(s => (
-              <button key={s.key} onClick={() => setFilter(s.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                  ${filter === s.key ? 'bg-red-600 text-white' : 'bg-zinc-800/60 text-zinc-400 hover:text-white'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${filter === s.key ? 'bg-white' : s.dot}`} />
-                <span>{counts[s.key]}</span>
-                {s.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          <FileText size={16} className="text-zinc-400" />
+          <h2 className="font-semibold text-white text-sm">Mis justificaciones</h2>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-zinc-900/60 rounded-xl border border-zinc-800/50">
+          {[
+            { key: 'pendiente', label: 'Pendientes', icon: <Timer size={13} />,       color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
+            { key: 'aprobada',  label: 'Aprobadas',  icon: <CheckCircle size={13} />, color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20 text-green-300' },
+            { key: 'rechazada', label: 'Rechazadas', icon: <XCircle size={13} />,     color: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20 text-red-300' },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all
+                ${activeTab === tab.key
+                  ? `border ${tab.bg}`
+                  : 'text-zinc-500 hover:text-zinc-300'}`}>
+              <span className={activeTab === tab.key ? '' : tab.color}>{tab.icon}</span>
+              {tab.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold
+                ${activeTab === tab.key ? 'bg-white/10' : 'bg-zinc-800 text-zinc-500'}`}>
+                {counts[tab.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Panel rechazadas — aviso extra */}
+        {activeTab === 'rechazada' && counts.rechazada > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex items-center gap-2.5 p-3 rounded-xl border border-red-500/20 bg-red-500/5">
+            <XCircle size={14} className="text-red-400 flex-shrink-0" />
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              {counts.rechazada >= 3
+                ? <span className="text-red-300 font-semibold">Atención: tienes {counts.rechazada} rechazadas. Por favor tómate más en serio las justificaciones.</span>
+                : `Tienes ${counts.rechazada} justificación${counts.rechazada > 1 ? 'es' : ''} rechazada${counts.rechazada > 1 ? 's' : ''}. Intenta ser más detallado en futuras justificaciones.`}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Panel aprobadas — mensaje positivo */}
+        {activeTab === 'aprobada' && counts.aprobada >= 6 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex items-center gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+            <Trophy size={14} className="text-amber-400 flex-shrink-0" />
+            <p className="text-xs text-amber-300 font-medium">
+              ¡Excelente! Tienes {counts.aprobada} justificaciones aprobadas. Eres un miembro responsable del servidor.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Lista */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 border border-zinc-800/50 rounded-2xl bg-[#111111]">
             <FileText size={32} className="text-zinc-700" />
             <p className="text-zinc-400 text-sm font-medium">
-              {filter === 'all' ? 'Sin justificaciones aún' : `Sin justificaciones ${filter}s`}
+              {activeTab === 'pendiente' ? 'Sin justificaciones pendientes'
+                : activeTab === 'aprobada' ? 'Sin justificaciones aprobadas aún'
+                : 'Sin justificaciones rechazadas'}
             </p>
           </div>
         ) : (
@@ -322,9 +400,16 @@ export default function JustificationsPage() {
             {filtered.map(j => {
               const d = new Date(toDateStr(j.fecha) + 'T12:00:00')
               return (
-                <div key={j.id}
-                  className="flex items-stretch border border-zinc-800/50 hover:border-red-900/25 rounded-xl overflow-hidden transition-all">
-                  <div className="flex-shrink-0 w-14 flex flex-col items-center justify-center py-2.5 border-r border-zinc-800/50 bg-zinc-900/30">
+                <motion.div key={j.id}
+                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                  className={`flex items-stretch border rounded-xl overflow-hidden transition-all
+                    ${j.estado === 'rechazada' ? 'border-red-900/30 hover:border-red-800/40'
+                      : j.estado === 'aprobada' ? 'border-green-900/30 hover:border-green-800/40'
+                      : 'border-zinc-800/50 hover:border-zinc-700/50'}`}>
+                  <div className={`flex-shrink-0 w-14 flex flex-col items-center justify-center py-2.5 border-r
+                    ${j.estado === 'rechazada' ? 'border-red-900/20 bg-red-500/5'
+                      : j.estado === 'aprobada' ? 'border-green-900/20 bg-green-500/5'
+                      : 'border-zinc-800/50 bg-zinc-900/30'}`}>
                     <span className="text-xs text-zinc-500 capitalize">
                       {d.toLocaleDateString('es-ES', { weekday: 'short' })}
                     </span>
@@ -346,7 +431,7 @@ export default function JustificationsPage() {
                       {j.estado.charAt(0).toUpperCase() + j.estado.slice(1)}
                     </Badge>
                   </div>
-                </div>
+                </motion.div>
               )
             })}
           </div>
