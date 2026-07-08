@@ -1,16 +1,9 @@
 /**
  * AdminJustifications.jsx — Revisión de justificaciones de usuarios
- *
- * Muestra todas las justificaciones con:
- * - Nombre en sistema
- * - Username de Roblox + ID
- * - Número de teléfono
- * - Motivo, fecha, descripción
- * - Estado con acciones aprobar/rechazar
  */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Eye, FileText, Phone, Gamepad2, Filter } from 'lucide-react'
+import { Check, X, Eye, FileText, Phone, Gamepad2, AlertTriangle } from 'lucide-react'
 import Avatar from '../../components/Avatar'
 import Badge from '../../components/Badge'
 import Button from '../../components/Button'
@@ -33,7 +26,7 @@ export default function AdminJustifications() {
   const [viewModal, setViewModal] = useState(null)
   const [toast, setToast]         = useState(null)
   const [search, setSearch]       = useState('')
-  const [filter, setFilter]       = useState('all') // all | pendiente | aprobada | rechazada
+  const [filter, setFilter]       = useState('all')
 
   const loadJust = async () => {
     try {
@@ -53,12 +46,22 @@ export default function AdminJustifications() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  // Usuarios con 3+ rechazadas — para el aviso admin
+  const rejectedByUser = justList
+    .filter(j => j.estado === 'rechazada')
+    .reduce((acc, j) => {
+      const key = j.userId
+      if (!acc[key]) acc[key] = { name: j.systemName || j.displayName, avatar: j.avatar, username: j.username, count: 0 }
+      acc[key].count++
+      return acc
+    }, {})
+  const usersWithWarning = Object.values(rejectedByUser).filter(u => u.count >= 3)
+
   const updateJust = async (id, estado) => {
     try {
       const { justification } = await api.updateJustification(id, estado)
       setJustList(prev => prev.map(j => j.id === id ? justification : j))
-      setViewModal(prev => prev?.id === id ? justification : prev)
-      showToast(estado === 'aprobada' ? '✓ Justificación aprobada' : '✗ Justificación rechazada',
+      setViewModal(prev => prev?.id === id ? justification : prev)      showToast(estado === 'aprobada' ? '✓ Justificación aprobada' : '✗ Justificación rechazada',
         estado === 'aprobada' ? 'success' : 'error')
     } catch (err) {
       showToast(err.message, 'error')
@@ -92,6 +95,54 @@ export default function AdminJustifications() {
         title="Justificaciones"
         subtitle="Revisa y gestiona las justificaciones de ausencia de los miembros"
       />
+
+      {/* ══ AVISO: usuarios con 3+ rechazadas ══ */}
+      <AnimatePresence>
+        {usersWithWarning.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl border border-red-500/40 bg-red-500/8 overflow-hidden"
+          >
+            {/* Header del aviso */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-red-500/20 bg-red-500/10">
+              <div className="p-1.5 rounded-lg bg-red-500/20">
+                <AlertTriangle size={16} className="text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-300">
+                  ⚠ {usersWithWarning.length} miembro{usersWithWarning.length > 1 ? 's' : ''} con 3 o más justificaciones rechazadas
+                </p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Estos usuarios no están tomando en serio sus justificaciones. Considera hablar con ellos.
+                </p>
+              </div>
+            </div>
+            {/* Lista de usuarios problemáticos */}
+            <div className="divide-y divide-red-500/10">
+              {usersWithWarning.map(u => (
+                <div key={u.username} className="flex items-center gap-3 px-4 py-2.5">
+                  <Avatar src={u.avatar} alt={u.name} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{u.name}</p>
+                    <p className="text-xs text-zinc-500">@{u.username}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/30">
+                    <AlertTriangle size={11} className="text-red-400" />
+                    <span className="text-xs font-bold text-red-400">{u.count} rechazadas</span>
+                  </div>
+                  <button
+                    onClick={() => setFilter('rechazada'); setSearch(u.name)}
+                    className="text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                    Ver →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filtros de estado */}
       <div className="flex flex-col sm:flex-row gap-3">
