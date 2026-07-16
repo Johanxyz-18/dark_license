@@ -20,6 +20,7 @@ const robloxRoutes         = require('./routes/roblox')
 const invitationsRoutes    = require('./routes/invitations')
 const notificationsRoutes  = require('./routes/notifications')
 const monthlyRoutes        = require('./routes/monthly')
+const pollsRoutes          = require('./routes/polls')
 const { startJobs }        = require('./jobs')
 
 const app  = express()
@@ -64,6 +65,7 @@ app.use('/api/roblox',         robloxRoutes)
 app.use('/api/invitations',    invitationsRoutes)
 app.use('/api/notifications',  notificationsRoutes)
 app.use('/api/monthly',        monthlyRoutes)
+app.use('/api/polls',          pollsRoutes)
 
 // Ruta raíz — útil para verificar que el servidor está activo en Render
 app.get('/', (req, res) => {

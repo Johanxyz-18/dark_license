@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, FileText, Cake, BarChart3,
   Settings, LogOut, Menu, X, Bell, Shield, ChevronDown,
-  CheckCircle2, Clock, UserPlus, CalendarDays
+  CheckCircle2, Clock, UserPlus, CalendarDays, Vote
 } from 'lucide-react'
 import { useApp } from '../hooks/useApp'
 import Avatar from '../components/Avatar'
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/admin',               icon: <LayoutDashboard size={18} />, label: 'Dashboard',       end: true },
   { to: '/admin/users',         icon: <Users size={18} />,           label: 'Usuarios' },
   { to: '/admin/activities',    icon: <CalendarDays size={18} />,    label: 'Actividades' },
+  { to: '/admin/polls',         icon: <Vote size={18} />,            label: 'Convivencias' },
   { to: '/admin/justifications',icon: <FileText size={18} />,        label: 'Justificaciones' },
   { to: '/admin/birthdays',     icon: <Cake size={18} />,            label: 'Cumpleaños' },
   { to: '/admin/reports',       icon: <BarChart3 size={18} />,       label: 'Reportes' },

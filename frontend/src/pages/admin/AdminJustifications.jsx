@@ -61,7 +61,8 @@ export default function AdminJustifications() {
     try {
       const { justification } = await api.updateJustification(id, estado)
       setJustList(prev => prev.map(j => j.id === id ? justification : j))
-      setViewModal(prev => prev?.id === id ? justification : prev)      showToast(estado === 'aprobada' ? '✓ Justificación aprobada' : '✗ Justificación rechazada',
+      setViewModal(prev => prev?.id === id ? justification : prev)
+      showToast(estado === 'aprobada' ? '✓ Justificación aprobada' : '✗ Justificación rechazada',
         estado === 'aprobada' ? 'success' : 'error')
     } catch (err) {
       showToast(err.message, 'error')
@@ -133,7 +134,7 @@ export default function AdminJustifications() {
                     <span className="text-xs font-bold text-red-400">{u.count} rechazadas</span>
                   </div>
                   <button
-                    onClick={() => setFilter('rechazada'); setSearch(u.name)}
+                    onClick={() => { setFilter('rechazada'); setSearch(u.name) }}
                     className="text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
                     Ver →
                   </button>

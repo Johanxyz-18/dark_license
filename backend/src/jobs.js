@@ -141,14 +141,57 @@ async function monthlyReset() {
 
 // ── Arrancar los jobs ─────────────────────────────────────────────────────────
 
+async function checkClosedPolls() {
+  try {
+    const closedPolls = await queryAll(`
+      SELECT * FROM polls
+      WHERE closes_at <= NOW()
+        AND closed = FALSE
+    `)
+
+    for (const poll of closedPolls) {
+      await queryOne('UPDATE polls SET closed = TRUE WHERE id = $1', [poll.id])
+
+      const allUsers = await queryAll(
+        "SELECT id FROM users WHERE status = 'active' AND role != 'admin'"
+      )
+      const voted = await queryAll(
+        'SELECT user_id FROM poll_votes WHERE poll_id = $1',
+        [poll.id]
+      )
+      const votedIds = new Set(voted.map(v => v.user_id))
+
+      for (const u of allUsers) {
+        if (!votedIds.has(u.id)) {
+          await queryOne(
+            `INSERT INTO notifications (user_id, type, title, message)
+             VALUES ($1, 'warning', $2, $3)`,
+            [
+              u.id,
+              '⚠ No votaste en la convivencia',
+              `La votación "${poll.titulo}" ya cerró y no registraste tu voto. En futuras convivencias asegúrate de votar a tiempo.`,
+            ]
+          )
+        }
+      }
+      console.log(`[jobs] Votación cerrada: "${poll.titulo}" — ${allUsers.length - votedIds.size} sin voto notificados`)
+    }
+  } catch (err) {
+    console.error('[jobs/checkClosedPolls]', err.message)
+  }
+}
+
 function startJobs() {
   // Verificar actividades cerradas cada 5 minutos
   setInterval(checkClosedEvents, 5 * 60 * 1000)
+  // Verificar votaciones cerradas cada 5 minutos
+  setInterval(checkClosedPolls, 5 * 60 * 1000)
   // Verificar reset mensual cada hora
   setInterval(monthlyReset, 60 * 60 * 1000)
 
   // Ejecutar inmediatamente al arrancar
   checkClosedEvents()
+  checkClosedPolls()
   monthlyReset()
 
   console.log('✅ Jobs automáticos iniciados (cierre actividades: 5min, reset mensual: 1h)')

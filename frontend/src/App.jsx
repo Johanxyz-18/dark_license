@@ -11,6 +11,7 @@ import ProfilePage from './pages/user/ProfilePage'
 import JustificationsPage from './pages/user/JustificationsPage'
 import BirthdaysPage from './pages/user/BirthdaysPage'
 import SettingsPage from './pages/user/SettingsPage'
+import VotingPage from './pages/user/VotingPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminActivities from './pages/admin/AdminActivities'
@@ -18,6 +19,7 @@ import AdminJustifications from './pages/admin/AdminJustifications'
 import AdminBirthdays from './pages/admin/AdminBirthdays'
 import AdminReports from './pages/admin/AdminReports'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminPolls from './pages/admin/AdminPolls'
 import Button from './components/Button'
 import Input from './components/Input'
 
@@ -118,6 +120,7 @@ function AppRoutes() {
             <Route path="activities" element={<AdminActivities />} />
             <Route path="justifications" element={<AdminJustifications />} />
             <Route path="birthdays" element={<AdminBirthdays />} />
+            <Route path="polls" element={<AdminPolls />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
@@ -136,6 +139,7 @@ function AppRoutes() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="justifications" element={<JustificationsPage />} />
           <Route path="birthdays" element={<BirthdaysPage />} />
+          <Route path="voting" element={<VotingPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

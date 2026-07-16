@@ -100,6 +100,20 @@ export const api = {
     request(`/invitations/${id}`, { method: 'DELETE' }),
   checkInviteCode: (code) =>
     request(`/invitations/${code}`),
+
+  // Votaciones
+  getPolls: () => request('/polls'),
+  getPoll: (id) => request(`/polls/${id}`),
+  createPoll: (data) =>
+    request('/polls', { method: 'POST', body: JSON.stringify(data) }),
+  deletePoll: (id) =>
+    request(`/polls/${id}`, { method: 'DELETE' }),
+  vote: (id, respuesta) =>
+    request(`/polls/${id}/vote`, { method: 'POST', body: JSON.stringify({ respuesta }) }),
+  removeVote: (id) =>
+    request(`/polls/${id}/vote`, { method: 'DELETE' }),
+  closePoll: (id) =>
+    request(`/polls/${id}/close`, { method: 'POST' }),
 }
 
 export default api
